@@ -30,17 +30,23 @@ def scrape():
     res.raise_for_status()
     soup = BeautifulSoup(res.text, "html.parser")
 
+    seen = set()          # нэг хуудсанд давтагдсан мэдээг алгасах
     rows = []
     for art in soup.find_all("article"):
         title_el = art.select_one("h1.entry-title a")
         if not title_el or not title_el.get("href"):
             continue
+        link = title_el["href"]
+        if link in seen:   # давхардсан link — алгасна
+            continue
+        seen.add(link)
+
         img_el = art.select_one(".tw-thumbnail img")
         excerpt_el = art.select_one(".entry-content p")
         date_el = art.select_one(".tw-meta.entry-date")
 
         rows.append({
-            "link": title_el["href"],                          # primary key
+            "link": link,                                      # primary key
             "title": title_el.get_text(strip=True),
             "image": img_el.get("src") if img_el else None,
             "excerpt": excerpt_el.get_text(strip=True) if excerpt_el else "",
