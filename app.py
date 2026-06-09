@@ -36,6 +36,49 @@ st.set_page_config(page_title="news.mn — Энтертайнмент", page_ico
 
 st.markdown("""
 <style>
+/* ── Streamlit-ийн дээд toolbar / GitHub / menu-г нуух ── */
+#MainMenu {visibility: hidden;}
+header {visibility: hidden;}
+footer {visibility: hidden;}
+[data-testid="stToolbar"] {display: none !important;}
+[data-testid="stDecoration"] {display: none !important;}
+[data-testid="stStatusWidget"] {display: none !important;}
+.stDeployButton {display: none !important;}
+[data-testid="stHeader"] {display: none !important;}
+
+/* Дээд талын хоосон зайг багасгах */
+[data-testid="stMainBlockContainer"] {padding-top: 1.5rem !important;}
+
+/* ── Header banner ── */
+.app-header {
+    background: linear-gradient(120deg, #1e3a8a 0%, #2563eb 55%, #0ea5e9 100%);
+    border-radius: 18px;
+    padding: 28px 32px;
+    margin-bottom: 8px;
+    box-shadow: 0 10px 30px rgba(37,99,235,.25);
+    position: relative;
+    overflow: hidden;
+}
+.app-header::after {
+    content: '📰';
+    position: absolute; right: 24px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 5rem; opacity: .15;
+}
+.app-header h1 {
+    color: #fff !important; font-size: 2rem; font-weight: 800;
+    margin: 0 0 6px 0; letter-spacing: -.5px;
+}
+.app-header p {
+    color: rgba(255,255,255,.85) !important; font-size: .95rem; margin: 0;
+}
+.app-badge {
+    display: inline-block; background: rgba(255,255,255,.2);
+    color: #fff; font-size: .72rem; font-weight: 700;
+    padding: 4px 12px; border-radius: 20px; margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,.3);
+}
+
 .news-card {
     background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
     overflow: hidden; height: 100%; transition: all .2s;
@@ -51,13 +94,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Толгой ──
-col1, col2 = st.columns([4, 1])
-with col1:
-    st.title("📰 news.mn — Энтертайнмент")
-    st.caption("Дата автоматаар (30 мин тутам) шинэчлэгддэг · Эх сурвалж: news.mn")
+# ── Толгой (gradient banner) ──
+st.markdown("""
+<div class="app-header">
+    <span class="app-badge">🔄 30 мин тутам автоматаар шинэчлэгддэг</span>
+    <h1>news.mn — Энтертайнмент</h1>
+    <p>Монголын энтертайнмент мэдээ нэг дороос · Эх сурвалж: news.mn</p>
+</div>
+""", unsafe_allow_html=True)
+
+col1, col2 = st.columns([5, 1])
 with col2:
-    st.write("")
     if st.button("🔄 Шинэчлэх", use_container_width=True):
         load_news.clear()
         st.rerun()
