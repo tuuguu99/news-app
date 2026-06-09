@@ -1,0 +1,25 @@
+name: Scrape news.mn
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # 30 минут тутам автоматаар (хэн ч аппыг нээгээгүй ч)
+  workflow_dispatch:          # GitHub дээр товч дараад гараар ч ажиллуулж болно
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements_scraper.txt
+
+      - name: Run scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python scraper.py
