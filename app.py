@@ -12,6 +12,7 @@ news.mn — Entertainment мэдээ (Supabase-аас уншина)
 """
 import streamlit as st
 from supabase import create_client
+from google import genai
 
 # ── Supabase холболт ──
 @st.cache_resource
@@ -29,6 +30,44 @@ def load_news():
              .limit(60)
              .execute())
     return res.data or []
+
+
+# ── Gemini чатбот (шинэ google-genai SDK) ──
+@st.cache_resource
+def get_gemini():
+    """Gemini client. GEMINI_API_KEY байхгүй бол None."""
+    key = st.secrets.get("GEMINI_API_KEY")
+    if not key:
+        return None
+    return genai.Client(api_key=key)
+
+
+def ask_ai(question, news_items):
+    """Одоогийн мэдээг контекст болгон Gemini-ээс хариу авна."""
+    client = get_gemini()
+    if client is None:
+        return "⚠️ Чатбот тохируулагдаагүй байна. secrets.toml-д GEMINI_API_KEY нэмнэ үү."
+
+    # Одоогийн мэдээний гарчиг + хураангуйг контекст болгоно
+    context = "\n".join(
+        f"- {n.get('title','')} ({n.get('date_text','')}): {(n.get('excerpt') or '')[:120]}"
+        for n in news_items[:30]
+    )
+    prompt = (
+        "Чи news.mn-ийн энтертайнмент мэдээний AI туслах. "
+        "Зөвхөн монголоор, товч бөгөөд найрсаг хариул. "
+        "Доорх мэдээний жагсаалтад тулгуурлан хариул. Хэрэв жагсаалтад байхгүй бол ерөнхий мэдлэгээрээ хариулж болно.\n\n"
+        f"=== Одоогийн мэдээ ===\n{context}\n\n"
+        f"=== Хэрэглэгчийн асуулт ===\n{question}"
+    )
+    try:
+        resp = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+        return resp.text
+    except Exception as e:
+        msg = str(e)
+        if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
+            return "⚠️ Gemini-ийн өнөөдрийн үнэгүй квот дууссан байна. Маргааш дахин оролдоно уу."
+        return f"⚠️ AI алдаа: {type(e).__name__}: {msg[:150]}"
 
 
 # ── Хуудасны тохиргоо ──
@@ -91,6 +130,37 @@ footer {visibility: hidden;}
 .news-title a:hover { color: #2563eb; }
 .news-excerpt { font-size: .85rem; color: #6b7280; line-height: 1.5; margin-bottom: 8px; }
 .news-date { font-size: .75rem; color: #9ca3af; }
+
+/* ── Floating чат — баруун доод буланд ── */
+div[data-testid="stPopover"] {
+    position: fixed !important;
+    bottom: 28px !important;
+    right: 28px !important;
+    left: auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    z-index: 99999;
+}
+/* контейнер доторх бүх wrapper-ийг агшаах */
+div[data-testid="stPopover"] > div {
+    width: auto !important;
+}
+/* товчийг бүтэн өргөнөөс татгалзуулж дугуй pill болгох */
+div[data-testid="stPopover"] button {
+    width: auto !important;
+    border-radius: 50px !important;
+    background: linear-gradient(135deg, #1e3a8a, #2563eb) !important;
+    color: #fff !important; font-weight: 700 !important;
+    border: none !important;
+    padding: 12px 24px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 8px 24px rgba(37,99,235,.45) !important;
+}
+div[data-testid="stPopover"] button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(37,99,235,.55) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -122,6 +192,41 @@ if not news:
     st.stop()
 
 st.success(f"Нийт {len(news)} мэдээ")
+
+# ── Floating AI чатбот (баруун доод буланд) ──
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+
+@st.fragment
+def floating_chat(news_items):
+    # popover нь rerun дээр хаагддаг тул fragment дотор тавьж нээлттэй байлгана
+    with st.popover("💬 AI Туслах", use_container_width=False):
+        st.markdown("#### 🤖 AI Туслах")
+        st.caption("Мэдээний талаар асуу · Gemini")
+
+        chat_box = st.container(height=320)
+        for m in st.session_state.chat_history:
+            with chat_box.chat_message(m["role"]):
+                st.write(m["content"])
+
+        if prompt := st.chat_input("Жишээ: өнөөдөр ямар мэдээ байна?"):
+            st.session_state.chat_history.append({"role": "user", "content": prompt})
+            with chat_box.chat_message("user"):
+                st.write(prompt)
+            with chat_box.chat_message("assistant"):
+                with st.spinner("..."):
+                    answer = ask_ai(prompt, news_items)
+                st.write(answer)
+            st.session_state.chat_history.append({"role": "assistant", "content": answer})
+
+        if st.session_state.chat_history:
+            if st.button("🗑️ Цэвэрлэх", use_container_width=True):
+                st.session_state.chat_history = []
+                st.rerun(scope="fragment")
+
+
+floating_chat(news)
 
 # ── Хайлт ──
 q = st.text_input("🔍 Гарчигаар хайх", placeholder="түлхүүр үг...")
